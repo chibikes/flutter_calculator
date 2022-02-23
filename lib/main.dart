@@ -1,9 +1,4 @@
-import 'dart:collection';
-import 'dart:convert';
-import 'dart:ffi';
-
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter_calculator/calculator.dart';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -11,7 +6,6 @@ void main() {
 }
 
 class MyApp extends StatelessWidget {
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -19,7 +13,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: MyHomePage(title: 'Flutter Demo Home Page'),
+      home: MyHomePage(title: 'Simple Calculator'),
     );
   }
 }
@@ -97,13 +91,7 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
             ),
 
-            // Expanded(
-            //   child: Row(
-            //     // mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            //     children: rowFive!,
-            //   ),
 
-            // ),
           ],
         ),
       ),
@@ -111,10 +99,35 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   void displayCalculation(String newInput) {
+
+    final cursorLength = _controller.selection.end;
     if (newInput == '=') {
-      newInput = solveForx(_controller.text);
+      try {
+        newInput = Calculator.calculate(_controller.text);
+      }catch (e) {
+        newInput = '0';
+      }
       return setState(() {
         _controller.text = newInput;
+        _controller.selection = TextSelection.fromPosition(
+            TextPosition(offset: _controller.text.length));
+      });
+    } else if(newInput == 'DEL/AC') {
+      //TODO: you must press DEL twice instead of once to be able to delete. shouldn't be so.
+      return setState(() {
+        _controller.text.isNotEmpty ?
+        _controller.text = _controller.text.replaceRange(cursorLength-1, cursorLength, '')
+            : _controller.text;
+        _controller.selection = TextSelection.fromPosition(
+            TextPosition(offset: cursorLength - 1));
+      });
+
+    }
+    else if(newInput == 'AC') {
+      return setState((){
+        _controller.text.isNotEmpty ? _controller.text = '' : _controller.text;
+        _controller.selection = TextSelection.fromPosition(
+            TextPosition(offset: _controller.text.length));
       });
     }
     setState(() {
@@ -122,75 +135,18 @@ class _MyHomePageState extends State<MyHomePage> {
       final newText;
       final txtLength = text.length - 2 < 0 ? 0 : text.length - 2; /// possible last operand position
       final TextSelection textSelection = _controller.selection;
-      final cursorLength = textSelection.end;
 
-      String regExp = '^[+-\u00f7\u00d7]';
-      if(text.isNotEmpty && text[txtLength].contains(RegExp(r'^[+-\u00f7\u00d7]')) && newInput.contains(RegExp(r'^[+-\u00f7\u00d7]')) && cursorLength == text.length) {
-        newText = text.replaceRange(text.length-1, text.length, newInput);
 
-      } else {
-        newText = text.replaceRange(
-            textSelection.start == -1 ? 0 : textSelection.start,
-            textSelection.end == -1 ? 0 : textSelection.end,
-            newInput);
-      }
+      newText = text.replaceRange(
+          textSelection.start == -1 ? 0 : textSelection.start,
+          textSelection.end == -1 ? 0 : textSelection.end,
+          newInput);
       _controller.text = newText;
       _controller.selection = TextSelection.fromPosition(
           TextPosition(offset: _controller.text.length));
     });
   }
 
-  String solveForx(String ss) {
-    int index = 0;
-    List<String> asss = ss.split(RegExp('\\s'));
-    for (int i = 0; i < asss.length; i++) {
-      asss[i] = percentageOf(asss[i]);
-      if (asss[i] == '\u00d7') {
-        String lhs = asss[i - 1];
-        String rhs = asss[i + 1];
-        String ans = (double.parse(lhs) * double.parse(rhs)).toString();
-        asss[i] = ans;
-        asss.removeAt(i - 1);
-        asss.removeAt(i);
-        i = i - 1;
-      }
-      if (asss[i] == '\u00f7') {
-        String lhs = asss[i - 1];
-        String rhs = asss[i + 1];
-        String ans = (double.parse(lhs) / double.parse(rhs)).toString();
-        asss[i] = ans;
-        asss.removeAt(i - 1);
-        asss.removeAt(i);
-        i = i - 1;
-      }
-    }
-    if (asss.length == 1) return asss[0];
-    int operand = 1;
-    double x = double.parse(asss[0]);
-    index = 2;
-    for (int i = 0; index < asss.length; i++) {
-      String operation = asss[operand];
-
-      switch (operation) {
-        case '+':
-          x = x + double.parse(asss[index]);
-          break;
-        case '-':
-          x = x - double.parse(asss[index]);
-          break;
-      }
-      operand = operand + 2;
-      index = index + 2;
-    }
-    return x.toString();
-  }
-  String percentageOf(String x) {
-    if(x.endsWith('%')){
-      x = x.substring(0, x.length-1);
-      x = (double.parse(x) / 100).toString();
-    }
-    return x;
-  }
 
   List<Widget>? rowOne, rowTwo, rowThree, rowFour, rowFirst;
 
@@ -207,13 +163,13 @@ class _MyHomePageState extends State<MyHomePage> {
         child: GestureDetector(
           onTap: () {
             if (index == 3)
-              btnValue = ' + ';
+              btnValue = '+';
             else
               btnValue = (index + 1).toString();
             displayCalculation(btnValue);
           },
           child: CalcButton(
-            btnVal: index == 3 ? ' + ' : null,
+            btnVal: index == 3 ? '+' : null,
             index: index,
             height: 50,
             width: 50,
@@ -228,13 +184,13 @@ class _MyHomePageState extends State<MyHomePage> {
         child: GestureDetector(
           onTap: () {
             if (index == 3)
-              btnValue = ' \u00d7 ';
+              btnValue = '*';
             else
               btnValue = (index + 4).toString();
             displayCalculation(btnValue);
           },
           child: CalcButton(
-            btnVal: index == 3 ? '\u00d7' : null,
+            btnVal: index == 3 ? '*' : null,
             index: index + 3,
             height: 50,
             width: 50,
@@ -248,13 +204,13 @@ class _MyHomePageState extends State<MyHomePage> {
         child: GestureDetector(
           onTap: () {
             if (index == 3)
-              btnValue = ' \u00f7 ';
+              btnValue = '/';
             else
               btnValue = (index + 7).toString();
             displayCalculation(btnValue);
           },
           child: CalcButton(
-            btnVal: index == 3 ? '\u00f7' : null,
+            btnVal: index == 3 ? '/' : null,
             index: index + 6,
             height: 50,
             width: 50,
@@ -290,15 +246,19 @@ class _MyHomePageState extends State<MyHomePage> {
     rowFirst = List.generate(4, (index) {
       String btnVal = '';
       if (index == 0)
-        btnVal = 'DEL';
+        btnVal = 'DEL/AC';
       else if (index == 1)
-        btnVal = '+/-';
+        btnVal = '(';
       else if (index == 2)
-        btnVal = '%';
-      else if (index == 3) btnVal = ' - ';
+        btnVal = ')';
+      else if (index == 3) btnVal = '-';
 
       return Expanded(
         child: GestureDetector(
+          onLongPressUp: () {
+            if(btnVal == 'DEL/AC')
+              displayCalculation('AC');
+          },
           onTap: () {
             displayCalculation(btnVal);
           },
